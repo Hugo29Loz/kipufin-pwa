@@ -2,6 +2,8 @@ export type NavTab = 'inicio' | 'diccionario' | 'simulador' | 'progreso' | 'perf
 
 export interface UserState {
   name: string;
+  email?: string;
+  financialGoal?: string;
   level: number;
   levelName: string;
   currentXP: number;

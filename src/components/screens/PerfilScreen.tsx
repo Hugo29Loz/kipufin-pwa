@@ -8,6 +8,7 @@ interface PerfilScreenProps {
   onUpdateCurrency: (currency: string) => void;
   onAddXP: (xp: number, reason: string) => void;
   onResetProgress: () => void;
+  onLogout?: () => void;
 }
 
 export const PerfilScreen: React.FC<PerfilScreenProps> = ({
@@ -16,6 +17,7 @@ export const PerfilScreen: React.FC<PerfilScreenProps> = ({
   onUpdateCurrency,
   onAddXP,
   onResetProgress,
+  onLogout,
 }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(userState.name);
@@ -126,11 +128,17 @@ export const PerfilScreen: React.FC<PerfilScreenProps> = ({
       {/* Profile Card */}
       <div className="bg-surface-container-lowest p-5 rounded-3xl border border-surface-container shadow-xs flex flex-col items-center text-center relative">
         <div className="relative mb-2">
-          <img
-            src={AVATAR_URL}
-            alt="Mateo"
-            className="w-20 h-20 rounded-full object-cover ring-4 ring-primary-fixed shadow-sm"
-          />
+          {userState.avatarUrl ? (
+            <img
+              src={userState.avatarUrl}
+              alt={userState.name}
+              className="w-20 h-20 rounded-full object-cover ring-4 ring-primary-fixed shadow-sm"
+            />
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white flex items-center justify-center text-2xl font-black ring-4 ring-primary-fixed shadow-sm">
+              {userState.name.charAt(0).toUpperCase()}
+            </div>
+          )}
           <span className="absolute bottom-0 right-0 w-5 h-5 bg-primary text-on-primary rounded-full flex items-center justify-center text-xs">
             ✓
           </span>
@@ -164,9 +172,22 @@ export const PerfilScreen: React.FC<PerfilScreenProps> = ({
           </div>
         )}
 
-        <p className="text-xs text-on-surface-variant font-medium mt-0.5">
-          Curioso Financiero • Nivel {userState.level}
-        </p>
+        <div className="flex items-center gap-1.5 flex-wrap justify-center mt-1">
+          <span className="text-xs text-on-surface-variant font-medium">
+            {userState.levelName} • Nivel {userState.level}
+          </span>
+          {userState.email && (
+            <span className="text-[11px] text-outline font-medium">
+              • {userState.email}
+            </span>
+          )}
+        </div>
+
+        {userState.financialGoal && (
+          <div className="mt-2 bg-primary-fixed/30 text-on-primary-fixed px-3 py-1 rounded-full text-[11px] font-bold">
+            🎯 {userState.financialGoal}
+          </div>
+        )}
 
         {/* Stats strip */}
         <div className="grid grid-cols-3 gap-2 w-full mt-4 pt-3 border-t border-surface-container">
@@ -456,6 +477,38 @@ export const PerfilScreen: React.FC<PerfilScreenProps> = ({
           >
             Reiniciar
           </button>
+        </div>
+      </div>
+
+      {/* Cuenta y Control de Sesión */}
+      <div className="bg-surface-container-lowest p-4 rounded-3xl border border-surface-container shadow-xs space-y-3">
+        <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider">
+          Cuenta & Sesión
+        </h3>
+
+        <div className="flex items-center justify-between bg-surface-container-low p-3 rounded-2xl border border-surface-container">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+              {userState.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <p className="text-xs font-bold text-on-surface">{userState.name}</p>
+              <p className="text-[11px] text-on-surface-variant">
+                {userState.email || 'Sesión activa en este dispositivo'}
+              </p>
+            </div>
+          </div>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="bg-red-50 hover:bg-red-100 text-error border border-red-200 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+              title="Cerrar sesión y volver a pantalla de bienvenida"
+            >
+              <span className="material-symbols-outlined text-sm">logout</span>
+              <span>Cerrar Sesión</span>
+            </button>
+          )}
         </div>
       </div>
 

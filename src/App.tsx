@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { CapsuleDrawer } from './components/CapsuleDrawer';
 import { CelebrationToast } from './components/CelebrationToast';
+import { AuthScreen } from './components/screens/AuthScreen';
 import { HomeScreen } from './components/screens/HomeScreen';
 import { DiccionarioScreen } from './components/screens/DiccionarioScreen';
 import { SimuladorScreen } from './components/screens/SimuladorScreen';
@@ -11,8 +12,10 @@ import { PerfilScreen } from './components/screens/PerfilScreen';
 import { NavTab, TopicLesson, UserState } from './types';
 import { AVATAR_URL } from './data/mockData';
 
-const INITIAL_USER_STATE: UserState = {
+const DEMO_USER_STATE: UserState = {
   name: 'Mateo',
+  email: 'mateo@kipufin.pe',
+  financialGoal: 'Dominar tarjetas y TCEA',
   level: 3,
   levelName: 'Curioso',
   currentXP: 450,
@@ -27,6 +30,15 @@ const INITIAL_USER_STATE: UserState = {
 };
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      const auth = localStorage.getItem('kipufin_is_authenticated');
+      return auth === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const [activeTab, setActiveTab] = useState<NavTab>('inicio');
   const [userState, setUserState] = useState<UserState>(() => {
     try {
@@ -39,7 +51,7 @@ export default function App() {
     } catch {
       // ignore
     }
-    return INITIAL_USER_STATE;
+    return DEMO_USER_STATE;
   });
 
   const [activeCapsuleLesson, setActiveCapsuleLesson] = useState<TopicLesson | null>(null);
@@ -65,6 +77,77 @@ export default function App() {
     }, 3500);
   };
 
+  const handleAuthSuccess = (data: {
+    name: string;
+    email: string;
+    financialGoal: string;
+    isNewUser: boolean;
+  }) => {
+    if (data.isNewUser) {
+      const newUserState: UserState = {
+        name: data.name,
+        email: data.email,
+        financialGoal: data.financialGoal,
+        level: 1,
+        levelName: 'Novato',
+        currentXP: 50,
+        nextLevelXP: 150,
+        streakDays: 1,
+        claimedStreakReward: false,
+        avatarUrl: '',
+        completedLessons: [],
+        bookmarkedTerms: ['tcea'],
+        unlockedAchievements: ['ach-1'],
+        currencySymbol: 'S/',
+      };
+      setUserState(newUserState);
+      try {
+        localStorage.setItem('kipufin_user_state', JSON.stringify(newUserState));
+      } catch {
+        // ignore
+      }
+      showToast(
+        `¡Bienvenido a KipuFin, ${data.name}! 🎉`,
+        'Bono de +50 XP y 1er día de racha acreditados a tu cuenta.',
+        50
+      );
+    } else {
+      setUserState((prev) => {
+        const updated = {
+          ...prev,
+          name: data.name || prev.name,
+          email: data.email || prev.email,
+          financialGoal: data.financialGoal || prev.financialGoal,
+        };
+        try {
+          localStorage.setItem('kipufin_user_state', JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+        return updated;
+      });
+      showToast(`¡Hola de nuevo, ${data.name}! 👋`, 'Tus datos personalizados están listos.');
+    }
+
+    try {
+      localStorage.setItem('kipufin_is_authenticated', 'true');
+    } catch {
+      // ignore
+    }
+    setIsAuthenticated(true);
+    setActiveTab('inicio');
+  };
+
+  const handleLogout = () => {
+    try {
+      localStorage.setItem('kipufin_is_authenticated', 'false');
+    } catch {
+      // ignore
+    }
+    setIsAuthenticated(false);
+    showToast('Has cerrado sesión', 'Esperamos verte pronto en KipuFin');
+  };
+
   const handleAddXP = (xp: number, reason: string) => {
     setUserState((prev) => {
       let newXP = prev.currentXP + xp;
@@ -76,7 +159,9 @@ export default function App() {
       if (newXP >= prev.nextLevelXP) {
         newLevel += 1;
         newNextLevelXP = Math.round(prev.nextLevelXP * 1.5);
-        if (newLevel === 4) newLevelName = 'Estratega';
+        if (newLevel === 2) newLevelName = 'Aprendiz';
+        else if (newLevel === 3) newLevelName = 'Curioso';
+        else if (newLevel === 4) newLevelName = 'Estratega';
         else if (newLevel >= 5) newLevelName = 'Maestro';
         showToast(`¡Subiste al Nivel ${newLevel}: ${newLevelName}! 🚀`, reason, xp);
       } else {
@@ -139,9 +224,24 @@ export default function App() {
   };
 
   const handleResetProgress = () => {
-    setUserState(INITIAL_USER_STATE);
+    setUserState(DEMO_USER_STATE);
     showToast('Datos de demostración reiniciados', 'Listo para empezar de nuevo');
   };
+
+  // If user is not authenticated, render Welcome / Auth Screen
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-surface text-on-surface font-sans antialiased">
+        <CelebrationToast
+          message={toast?.message || null}
+          subMessage={toast?.subMessage}
+          xp={toast?.xp}
+          onClose={() => setToast(null)}
+        />
+        <AuthScreen onAuthSuccess={handleAuthSuccess} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-surface text-on-surface font-sans antialiased flex flex-col relative selection:bg-primary-fixed selection:text-on-primary-fixed">
@@ -158,6 +258,8 @@ export default function App() {
         currentXP={userState.currentXP}
         level={userState.level}
         streakDays={userState.streakDays}
+        userName={userState.name}
+        avatarUrl={userState.avatarUrl}
         onNavigate={setActiveTab}
       />
 
@@ -207,6 +309,7 @@ export default function App() {
             onUpdateCurrency={(sym) => setUserState((prev) => ({ ...prev, currencySymbol: sym }))}
             onAddXP={handleAddXP}
             onResetProgress={handleResetProgress}
+            onLogout={handleLogout}
           />
         )}
       </main>
