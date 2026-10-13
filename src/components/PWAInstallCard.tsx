@@ -35,7 +35,7 @@ export const PWAInstallCard: React.FC = () => {
       <div className="p-3 bg-surface-container-low rounded-2xl border border-surface-container flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <img
-            src="/logo.png"
+            src="/icon-192.png"
             alt="KipuFin Icon"
             className="w-12 h-12 rounded-2xl shadow-xs ring-1 ring-primary/20 shrink-0 object-contain"
           />
@@ -94,7 +94,7 @@ export const PWAInstallCard: React.FC = () => {
           <div className="bg-surface-container-lowest w-full max-w-sm rounded-3xl p-5 border border-surface-container shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <img src="/logo.png" alt="KipuFin" className="w-8 h-8 rounded-xl" />
+                <img src="/icon-192.png" alt="KipuFin" className="w-8 h-8 rounded-xl" />
                 <h3 className="text-sm font-bold text-on-surface">
                   Instalar KipuFin en tu pantalla
                 </h3>

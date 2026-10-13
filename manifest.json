@@ -1,24 +1,19 @@
 {
-  "name": "KipuFin - Educación Financiera",
+  "name": "KipuFin",
   "short_name": "KipuFin",
-  "description": "Domina tus finanzas personales sin tecnicismos con microlecciones, regla 50/30/20 interactiva y metas de ahorro.",
   "start_url": "/",
-  "id": "/",
-  "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#006948",
-  "theme_color": "#006948",
-  "categories": ["education", "finance"],
+  "background_color": "#ffffff",
+  "theme_color": "#0D1B2A",
   "icons": [
     {
-      "src": "/logo.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/logo.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
