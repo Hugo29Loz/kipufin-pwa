@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AVATAR_URL } from '../../data/mockData';
 import { UserState } from '../../types';
 import { Rule503020Calculator } from '../Rule503020Calculator';
+import { PWAInstallCard } from '../PWAInstallCard';
 
 interface PerfilScreenProps {
   userState: UserState;
@@ -590,6 +591,9 @@ export const PerfilScreen: React.FC<PerfilScreenProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Acceso e Instalación PWA */}
+      <PWAInstallCard />
 
       {/* Cuenta y Control de Sesión */}
       <div className="bg-surface-container-lowest p-4 rounded-3xl border border-surface-container shadow-xs space-y-3">
