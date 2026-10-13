@@ -1,0 +1,6 @@
+{
+  "name": "KipuFin - Educación Financiera en Cristiano",
+  "description": "Domina tus finanzas sin tecnicismos con microlecciones de 4 a 5 min, el simulador ¿Puedo comprarlo?, diccionario de siglas (TCEA, TEA, TREA) y seguimiento de metas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
