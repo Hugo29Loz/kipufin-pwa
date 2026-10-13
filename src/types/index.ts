@@ -15,6 +15,13 @@ export interface UserState {
   bookmarkedTerms: string[];
   unlockedAchievements: string[];
   currencySymbol: string;
+  savedBudget?: {
+    monthlyIncome: number;
+    needs: number;
+    wants: number;
+    savings: number;
+    updatedAt: string;
+  };
 }
 
 export interface LessonQuiz {

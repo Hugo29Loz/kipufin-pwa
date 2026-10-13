@@ -223,6 +223,24 @@ export default function App() {
     setSimulatorPreloadAmount(amount);
   };
 
+  const handleSaveBudget = (budget: {
+    monthlyIncome: number;
+    needs: number;
+    wants: number;
+    savings: number;
+    updatedAt: string;
+  }) => {
+    setUserState((prev) => ({
+      ...prev,
+      savedBudget: budget,
+    }));
+    showToast(
+      '¡Presupuesto 50/30/20 guardado en tu perfil! 🎉',
+      `S/ ${budget.needs.toLocaleString('es-PE')} Necesidades (50%) • S/ ${budget.wants.toLocaleString('es-PE')} Deseos (30%) • S/ ${budget.savings.toLocaleString('es-PE')} Ahorro (20%)`,
+      25
+    );
+  };
+
   const handleResetProgress = () => {
     setUserState(DEMO_USER_STATE);
     showToast('Datos de demostración reiniciados', 'Listo para empezar de nuevo');
@@ -274,6 +292,7 @@ export default function App() {
             onToggleBookmark={handleToggleBookmark}
             onSimulateWithAmount={handleSimulateWithAmount}
             onAddXP={handleAddXP}
+            onSaveBudget={handleSaveBudget}
           />
         )}
 
@@ -310,6 +329,7 @@ export default function App() {
             onAddXP={handleAddXP}
             onResetProgress={handleResetProgress}
             onLogout={handleLogout}
+            onSaveBudget={handleSaveBudget}
           />
         )}
       </main>
@@ -321,6 +341,8 @@ export default function App() {
         onClose={() => setIsCapsuleOpen(false)}
         onComplete={handleCompleteCapsule}
         onAddXP={handleAddXP}
+        userState={userState}
+        onSaveBudget={handleSaveBudget}
         isAlreadyCompleted={
           activeCapsuleLesson ? userState.completedLessons.includes(activeCapsuleLesson.id) : false
         }

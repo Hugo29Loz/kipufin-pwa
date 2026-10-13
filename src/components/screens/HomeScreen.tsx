@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ALL_TOPIC_LESSONS, DICTIONARY_TERMS } from '../../data/mockData';
 import { NavTab, TopicLesson, UserState } from '../../types';
+import { Rule503020Calculator } from '../Rule503020Calculator';
 
 interface HomeScreenProps {
   userState: UserState;
@@ -10,6 +11,13 @@ interface HomeScreenProps {
   onToggleBookmark: (termId: string) => void;
   onSimulateWithAmount: (amount: number) => void;
   onAddXP: (xp: number, reason: string) => void;
+  onSaveBudget?: (budget: {
+    monthlyIncome: number;
+    needs: number;
+    wants: number;
+    savings: number;
+    updatedAt: string;
+  }) => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -20,6 +28,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onToggleBookmark,
   onSimulateWithAmount,
   onAddXP,
+  onSaveBudget,
 }) => {
   // Topic category selector state
   const [selectedTopic, setSelectedTopic] = useState<'ahorro' | 'tarjetas' | 'prestamos' | 'servicios'>('ahorro');
@@ -370,6 +379,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </p>
             </div>
           </div>
+
+          {/* Calculador Automático 50/30/20 en tiempo real */}
+          {currentLesson.id === 'les-ahorro-1' && (
+            <div className="pt-1">
+              <Rule503020Calculator
+                userState={userState}
+                currencySymbol={userState.currencySymbol}
+                onSaveBudget={onSaveBudget}
+                onAddXP={onAddXP}
+              />
+            </div>
+          )}
 
           {/* MINI TEST INTERACTIVO DIRECTO EN LA TARJETA */}
           <div className="bg-surface-container-low/80 p-3 rounded-2xl border border-primary/30 flex flex-col gap-2">

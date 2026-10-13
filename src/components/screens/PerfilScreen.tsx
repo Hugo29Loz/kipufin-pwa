@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AVATAR_URL } from '../../data/mockData';
 import { UserState } from '../../types';
+import { Rule503020Calculator } from '../Rule503020Calculator';
 
 interface PerfilScreenProps {
   userState: UserState;
@@ -9,6 +10,13 @@ interface PerfilScreenProps {
   onAddXP: (xp: number, reason: string) => void;
   onResetProgress: () => void;
   onLogout?: () => void;
+  onSaveBudget?: (budget: {
+    monthlyIncome: number;
+    needs: number;
+    wants: number;
+    savings: number;
+    updatedAt: string;
+  }) => void;
 }
 
 export const PerfilScreen: React.FC<PerfilScreenProps> = ({
@@ -18,9 +26,11 @@ export const PerfilScreen: React.FC<PerfilScreenProps> = ({
   onAddXP,
   onResetProgress,
   onLogout,
+  onSaveBudget,
 }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(userState.name);
+  const [showBudgetCalculator, setShowBudgetCalculator] = useState(false);
   const [goals, setGoals] = useState([
     { id: 'g-1', title: 'Fondo de Emergencia (Colchón en Soles)', current: 1200, target: 3000, icon: '🛟' },
     { id: 'g-2', title: 'Vacaciones en Máncora sin deuda', current: 450, target: 1200, icon: '✈️' },
@@ -380,6 +390,107 @@ export const PerfilScreen: React.FC<PerfilScreenProps> = ({
             continúa automatizando el 20% de tu sueldo apenas lo cobras.
           </p>
         </div>
+      </div>
+
+      {/* Mi Presupuesto 50/30/20 Vinculado */}
+      <div className="bg-surface-container-lowest p-4 rounded-3xl border border-surface-container shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="text-lg">📊</span>
+            <div>
+              <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider">
+                Mi Presupuesto 50/30/20
+              </h3>
+              <p className="text-[10px] text-on-surface-variant">
+                Distribución mensual vinculada a tu cuenta
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowBudgetCalculator(!showBudgetCalculator)}
+            className="text-xs font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
+          >
+            <span>{showBudgetCalculator ? 'Ocultar' : userState.savedBudget ? 'Recalcular' : '+ Vincular'}</span>
+            <span className="material-symbols-outlined text-sm">
+              {showBudgetCalculator ? 'expand_less' : 'expand_more'}
+            </span>
+          </button>
+        </div>
+
+        {userState.savedBudget ? (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between text-xs bg-surface-container-low p-2.5 rounded-2xl border border-surface-container">
+              <div>
+                <span className="text-[10px] text-on-surface-variant block">Ingreso mensual registrado:</span>
+                <span className="text-sm font-black text-on-surface font-mono">
+                  {userState.currencySymbol} {userState.savedBudget.monthlyIncome.toLocaleString('es-PE')}
+                </span>
+              </div>
+              <span className="text-[10px] bg-primary-fixed text-on-primary-fixed px-2 py-0.5 rounded-full font-bold">
+                Actualizado {userState.savedBudget.updatedAt}
+              </span>
+            </div>
+
+            {/* Visual 3-color bar */}
+            <div className="w-full h-3 rounded-full overflow-hidden flex shadow-inner bg-surface-container gap-0.5">
+              <div className="h-full bg-emerald-600 rounded-l-full" style={{ width: '50%' }} title="50% Necesidades" />
+              <div className="h-full bg-amber-500" style={{ width: '30%' }} title="30% Deseos" />
+              <div className="h-full bg-cyan-600 rounded-r-full" style={{ width: '20%' }} title="20% Ahorro" />
+            </div>
+
+            {/* 3 Pill values */}
+            <div className="grid grid-cols-3 gap-1.5 text-center">
+              <div className="bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
+                <span className="text-xs block">🏠</span>
+                <span className="text-[10px] font-bold text-emerald-950 block">50% Necesidades</span>
+                <span className="text-xs font-black text-emerald-900 font-mono block mt-0.5">
+                  {userState.currencySymbol} {userState.savedBudget.needs.toLocaleString('es-PE')}
+                </span>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 p-2 rounded-xl">
+                <span className="text-xs block">🎯</span>
+                <span className="text-[10px] font-bold text-amber-950 block">30% Deseos</span>
+                <span className="text-xs font-black text-amber-900 font-mono block mt-0.5">
+                  {userState.currencySymbol} {userState.savedBudget.wants.toLocaleString('es-PE')}
+                </span>
+              </div>
+              <div className="bg-cyan-50 border border-cyan-200 p-2 rounded-xl">
+                <span className="text-xs block">🐷</span>
+                <span className="text-[10px] font-bold text-cyan-950 block">20% Ahorro</span>
+                <span className="text-xs font-black text-cyan-900 font-mono block mt-0.5">
+                  {userState.currencySymbol} {userState.savedBudget.savings.toLocaleString('es-PE')}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-surface-container-low p-3 rounded-2xl border border-surface-container text-center space-y-1.5">
+            <p className="text-xs text-on-surface font-medium">
+              Aún no has registrado tu ingreso para calcular tu regla 50/30/20.
+            </p>
+            <button
+              onClick={() => setShowBudgetCalculator(true)}
+              className="bg-primary text-on-primary px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer hover:bg-primary-container"
+            >
+              Calcular y vincular ahora (+25 XP)
+            </button>
+          </div>
+        )}
+
+        {/* Collapsible Calculator */}
+        {showBudgetCalculator && (
+          <div className="pt-2 border-t border-surface-container">
+            <Rule503020Calculator
+              userState={userState}
+              currencySymbol={userState.currencySymbol}
+              onSaveBudget={(b) => {
+                if (onSaveBudget) onSaveBudget(b);
+                setShowBudgetCalculator(false);
+              }}
+              onAddXP={onAddXP}
+            />
+          </div>
+        )}
       </div>
 
       {/* Metas Activas de Ahorro */}

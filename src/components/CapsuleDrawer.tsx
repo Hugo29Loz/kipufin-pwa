@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { TopicLesson } from '../types';
+import { TopicLesson, UserState } from '../types';
+import { Rule503020Calculator } from './Rule503020Calculator';
 
 interface CapsuleDrawerProps {
   lesson: TopicLesson | null;
@@ -8,6 +9,14 @@ interface CapsuleDrawerProps {
   onComplete: (lessonId: string, xp: number) => void;
   onAddXP: (xp: number, reason: string) => void;
   isAlreadyCompleted: boolean;
+  userState?: UserState;
+  onSaveBudget?: (budget: {
+    monthlyIncome: number;
+    needs: number;
+    wants: number;
+    savings: number;
+    updatedAt: string;
+  }) => void;
 }
 
 export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
@@ -17,6 +26,8 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
   onComplete,
   onAddXP,
   isAlreadyCompleted,
+  userState,
+  onSaveBudget,
 }) => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [progressSec, setProgressSec] = useState<number>(105); // 1:45 default
@@ -237,6 +248,18 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
               </p>
             </div>
           </div>
+
+          {/* Calculador Automático 50/30/20 para eliminar fricción matemática */}
+          {lesson.id === 'les-ahorro-1' && (
+            <div className="pt-1">
+              <Rule503020Calculator
+                userState={userState}
+                currencySymbol={userState?.currencySymbol || 'S/'}
+                onSaveBudget={onSaveBudget}
+                onAddXP={onAddXP}
+              />
+            </div>
+          )}
 
           {/* 2. MINI TEST INTERACTIVO INCORPORADO */}
           <div className="p-3.5 bg-gradient-to-br from-surface-container-low to-surface-container rounded-2xl border-2 border-primary/40 shadow-xs space-y-2.5">
