@@ -348,13 +348,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <span>{currentLesson.icon}</span>
               </div>
               <div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[11px] text-secondary font-extrabold uppercase tracking-wide">
                     {currentLesson.badge}
                   </span>
                   <span className="text-[10px] bg-primary-fixed text-on-primary-fixed px-1.5 py-0.2 rounded font-bold">
                     {currentLesson.durationMin} min
                   </span>
+                  {currentLesson.audioUrl && (
+                    <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
+                      Audio Oficial 🎙️
+                    </span>
+                  )}
                 </div>
                 <h3 className="text-base text-on-surface font-bold leading-tight mt-0.5">
                   {currentLesson.title}
@@ -469,7 +475,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           {/* Mode Pill Toggle (Audio vs Texto) */}
           <div className="bg-surface-container p-1 rounded-xl flex items-center gap-1">
             <button
-              onClick={() => setCapsuleMode('audio')}
+              onClick={() => {
+                setCapsuleMode('audio');
+                onOpenCapsule(currentLesson);
+              }}
               className={`flex-1 py-1.5 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 capsuleMode === 'audio'
                   ? 'bg-surface-container-lowest text-primary shadow-xs font-bold'
@@ -479,7 +488,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <span className="material-symbols-outlined text-base text-secondary">
                 play_circle
               </span>
-              <span>Escuchar audio ({currentLesson.durationMin} min)</span>
+              <span>
+                {currentLesson.audioUrl ? 'Reproducir audio oficial 🎧' : `Escuchar audio (${currentLesson.durationMin} min)`}
+              </span>
             </button>
             <button
               onClick={() => setCapsuleMode('text')}

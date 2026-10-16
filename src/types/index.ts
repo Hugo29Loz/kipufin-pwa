@@ -49,6 +49,7 @@ export interface TopicLesson {
   takeaway: string;
   quiz: LessonQuiz;
   audioUrl?: string;
+  audioTranscript?: string;
 }
 
 export interface DictionaryTerm {

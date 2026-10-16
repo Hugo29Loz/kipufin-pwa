@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TopicLesson, UserState } from '../types';
 import { Rule503020Calculator } from './Rule503020Calculator';
 
@@ -30,25 +30,78 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
   onSaveBudget,
 }) => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [progressSec, setProgressSec] = useState<number>(105); // 1:45 default
-  const totalSec = 270; // 4:30
+  const [progressSec, setProgressSec] = useState<number>(0);
+  const [totalSec, setTotalSec] = useState<number>(230); // ~3:50 default
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [uploadedAudioUrl, setUploadedAudioUrl] = useState<string | null>(null);
+  const [audioFileName, setAudioFileName] = useState<string | null>(null);
+  const [showTranscript, setShowTranscript] = useState<boolean>(false);
+  const [useSpeechFallback, setUseSpeechFallback] = useState<boolean>(false);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [justCompleted, setJustCompleted] = useState<boolean>(false);
 
   // Mini test state
   const [selectedQuizOption, setSelectedQuizOption] = useState<number | null>(null);
   const [hasAnsweredQuiz, setHasAnsweredQuiz] = useState<boolean>(false);
 
-  // Reset quiz state when lesson changes
+  const activeAudioUrl = uploadedAudioUrl || lesson?.audioUrl || null;
+
+  // Reset state when lesson changes
   useEffect(() => {
     setSelectedQuizOption(null);
     setHasAnsweredQuiz(false);
-    setProgressSec(105);
+    setProgressSec(0);
     setIsPlaying(false);
+    setUploadedAudioUrl(null);
+    setAudioFileName(null);
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
   }, [lesson?.id]);
 
+  // Handle HTML5 Audio time updates
   useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => {
+      setProgressSec(Math.floor(audio.currentTime));
+    };
+
+    const handleLoadedMetadata = () => {
+      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+        setTotalSec(Math.floor(audio.duration));
+      }
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setProgressSec(Math.floor(audio.duration || totalSec));
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [activeAudioUrl, totalSec]);
+
+  // Fallback timer when not using real audio file or speech synthesis
+  useEffect(() => {
+    if (activeAudioUrl) return; // Managed by audio element
     let interval: NodeJS.Timeout;
-    if (isPlaying) {
+    if (isPlaying && !useSpeechFallback) {
       interval = setInterval(() => {
         setProgressSec((prev) => {
           if (prev >= totalSec) {
@@ -57,28 +110,113 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
           }
           return prev + 1;
         });
-      }, 1000);
+      }, 1000 / playbackSpeed);
     }
     return () => clearInterval(interval);
-  }, [isPlaying]);
+  }, [isPlaying, activeAudioUrl, useSpeechFallback, totalSec, playbackSpeed]);
 
   if (!isOpen || !lesson) return null;
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
-    const s = secs % 60;
+    const s = Math.floor(secs % 60);
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (uploadedAudioUrl) {
+        URL.revokeObjectURL(uploadedAudioUrl);
+      }
+      const url = URL.createObjectURL(file);
+      setUploadedAudioUrl(url);
+      setAudioFileName(file.name);
+      setIsPlaying(false);
+      setProgressSec(0);
+      setUseSpeechFallback(false);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+  };
+
+  const togglePlay = () => {
+    if (activeAudioUrl && audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        audioRef.current.playbackRate = playbackSpeed;
+        audioRef.current
+          .play()
+          .then(() => setIsPlaying(true))
+          .catch((err) => {
+            console.warn('Playback error:', err);
+            setIsPlaying(false);
+          });
+      }
+      return;
+    }
+
+    // If no audio file uploaded, optionally use Web Speech API narration in Spanish
+    if ('speechSynthesis' in window && !isPlaying) {
+      window.speechSynthesis.cancel();
+      const narrationText = `${lesson.title}. ${lesson.desc}. ${lesson.conceptTitle}: ${lesson.conceptDesc}. ${lesson.explanationList.map((e) => `${e.title}: ${e.desc}`).join('. ')}. Regla de oro: ${lesson.takeaway}`;
+      const utterance = new SpeechSynthesisUtterance(narrationText);
+      utterance.lang = 'es-PE';
+      utterance.rate = playbackSpeed;
+
+      utterance.onend = () => {
+        setIsPlaying(false);
+        setUseSpeechFallback(false);
+      };
+      utterance.onerror = () => {
+        setIsPlaying(false);
+        setUseSpeechFallback(false);
+      };
+
+      setUseSpeechFallback(true);
+      window.speechSynthesis.speak(utterance);
+      setIsPlaying(true);
+    } else if (isPlaying) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      setIsPlaying(false);
+      setUseSpeechFallback(false);
+    } else {
+      setIsPlaying(true);
+    }
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, clickX / rect.width));
-    setProgressSec(Math.round(ratio * totalSec));
+    const targetSec = Math.round(ratio * totalSec);
+    setProgressSec(targetSec);
+    if (uploadedAudioUrl && audioRef.current) {
+      audioRef.current.currentTime = targetSec;
+    }
   };
 
   const handleSkip = (delta: number) => {
-    setProgressSec((prev) => Math.max(0, Math.min(totalSec, prev + delta)));
+    const newSec = Math.max(0, Math.min(totalSec, progressSec + delta));
+    setProgressSec(newSec);
+    if (activeAudioUrl && audioRef.current) {
+      audioRef.current.currentTime = newSec;
+    }
+  };
+
+  const handleSpeedToggle = () => {
+    const speeds = [1, 1.25, 1.5];
+    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
+    const nextSpeed = speeds[nextIdx];
+    setPlaybackSpeed(nextSpeed);
+    if (activeAudioUrl && audioRef.current) {
+      audioRef.current.playbackRate = nextSpeed;
+    }
   };
 
   const handleQuizAnswer = (optionIndex: number) => {
@@ -94,6 +232,12 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
   const handleComplete = () => {
     if (justCompleted) return;
     setJustCompleted(true);
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
     onComplete(lesson.id, lesson.xpReward);
     setTimeout(() => {
       setJustCompleted(false);
@@ -103,6 +247,25 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end justify-center transition-opacity animate-in fade-in duration-200">
+      {/* Hidden audio element for real audio testing */}
+      {activeAudioUrl && (
+        <audio
+          ref={audioRef}
+          src={activeAudioUrl}
+          preload="auto"
+          className="hidden"
+        />
+      )}
+
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleAudioUpload}
+        accept="audio/*"
+        className="hidden"
+      />
+
       <div
         className="w-full max-w-md bg-surface-container-lowest rounded-t-3xl shadow-2xl p-5 flex flex-col max-h-[90vh] overflow-y-auto transform transition-transform duration-300 border-t border-surface-container"
         style={{ animation: 'slideUp 0.3s ease-out' }}
@@ -127,6 +290,12 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
                 <span className="text-[10px] bg-primary-fixed text-on-primary-fixed px-1.5 py-0.5 rounded font-bold">
                   {lesson.durationMin} min
                 </span>
+                {activeAudioUrl && (
+                  <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-1 border border-emerald-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
+                    {uploadedAudioUrl ? 'Audio Personalizado' : 'Audio Oficial KipuFin'}
+                  </span>
+                )}
               </div>
               <h3 className="text-base text-on-surface font-extrabold leading-tight mt-1">
                 {lesson.title}
@@ -142,7 +311,7 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
           </button>
         </div>
 
-        {/* Interactive Audio Player */}
+        {/* Interactive Audio Player with Real Audio & File Test */}
         <div className="mt-3.5 p-3.5 bg-surface-container-low rounded-2xl border border-surface-container flex flex-col gap-2.5 shadow-xs">
           <div className="flex items-center justify-between text-xs font-bold text-on-surface">
             <div className="flex items-center gap-1.5">
@@ -156,13 +325,22 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
               <span>Modo Audio Guiado</span>
               {isPlaying && (
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-primary text-on-primary font-semibold">
-                  Reproduciendo
+                  {activeAudioUrl ? 'Reproduciendo Audio Oficial' : 'Narración activa'}
                 </span>
               )}
             </div>
-            <span className="text-on-surface-variant font-mono font-normal text-[11px]">
-              {formatTime(progressSec)} / {formatTime(totalSec)}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSpeedToggle}
+                className="text-[10px] bg-surface-container px-2 py-0.5 rounded-md font-mono font-bold text-on-surface hover:bg-surface-container-high transition-colors"
+                title="Cambiar velocidad de reproducción"
+              >
+                {playbackSpeed}x
+              </button>
+              <span className="text-on-surface-variant font-mono font-normal text-[11px]">
+                {formatTime(progressSec)} / {formatTime(totalSec)}
+              </span>
+            </div>
           </div>
 
           {/* Scrubber bar */}
@@ -173,36 +351,96 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
           >
             <div
               className="bg-secondary-container h-full rounded-full transition-all group-hover:bg-secondary"
-              style={{ width: `${(progressSec / totalSec) * 100}%` }}
+              style={{ width: `${Math.min(100, (progressSec / (totalSec || 1)) * 100)}%` }}
             />
           </div>
 
           {/* Controls */}
-          <div className="flex items-center justify-center gap-5 pt-0.5">
+          <div className="flex items-center justify-between pt-0.5">
+            {/* Audio Upload / Test button */}
             <button
-              onClick={() => handleSkip(-10)}
-              className="text-on-surface-variant hover:text-on-surface p-1 rounded-full hover:bg-surface-container cursor-pointer transition-colors"
-              title="Retroceder 10 segundos"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-[11px] font-semibold text-primary hover:text-primary-container flex items-center gap-1 bg-surface-container px-2 py-1 rounded-lg border border-surface-container-high transition-colors cursor-pointer"
+              title="Cargar archivo MP3 para probar la lección (ej. leccion1.mp3)"
             >
-              <span className="material-symbols-outlined text-xl">replay_10</span>
-            </button>
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-md active:scale-95 transition-transform cursor-pointer hover:bg-primary-container"
-              title={isPlaying ? 'Pausar audio' : 'Reproducir audio'}
-            >
-              <span className="material-symbols-outlined text-2xl">
-                {isPlaying ? 'pause' : 'play_arrow'}
+              <span className="material-symbols-outlined text-sm">audio_file</span>
+              <span className="truncate max-w-[110px]">
+                {audioFileName ? audioFileName : 'Probar MP3'}
               </span>
             </button>
+
+            {/* Play / Skip buttons */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => handleSkip(-10)}
+                className="text-on-surface-variant hover:text-on-surface p-1 rounded-full hover:bg-surface-container cursor-pointer transition-colors"
+                title="Retroceder 10 segundos"
+              >
+                <span className="material-symbols-outlined text-xl">replay_10</span>
+              </button>
+              <button
+                onClick={togglePlay}
+                className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-md active:scale-95 transition-transform cursor-pointer hover:bg-primary-container"
+                title={isPlaying ? 'Pausar audio' : 'Reproducir audio'}
+              >
+                <span className="material-symbols-outlined text-2xl">
+                  {isPlaying ? 'pause' : 'play_arrow'}
+                </span>
+              </button>
+              <button
+                onClick={() => handleSkip(10)}
+                className="text-on-surface-variant hover:text-on-surface p-1 rounded-full hover:bg-surface-container cursor-pointer transition-colors"
+                title="Adelantar 10 segundos"
+              >
+                <span className="material-symbols-outlined text-xl">forward_10</span>
+              </button>
+            </div>
+
+            {/* Transcript toggle */}
             <button
-              onClick={() => handleSkip(10)}
-              className="text-on-surface-variant hover:text-on-surface p-1 rounded-full hover:bg-surface-container cursor-pointer transition-colors"
-              title="Adelantar 10 segundos"
+              onClick={() => setShowTranscript(!showTranscript)}
+              className={`text-[11px] font-semibold px-2 py-1 rounded-lg border transition-colors cursor-pointer flex items-center gap-1 ${
+                showTranscript
+                  ? 'bg-primary text-on-primary border-primary'
+                  : 'bg-surface-container text-on-surface border-surface-container-high hover:bg-surface-container-high'
+              }`}
+              title="Ver transcripción del audio"
             >
-              <span className="material-symbols-outlined text-xl">forward_10</span>
+              <span className="material-symbols-outlined text-sm">subtitles</span>
+              <span>Guión</span>
             </button>
           </div>
+
+          {/* Transcript drawer / panel */}
+          {showTranscript && (
+            <div className="mt-2 p-3 bg-surface-container-lowest rounded-xl border border-surface-container text-xs text-on-surface space-y-2 animate-in fade-in duration-150">
+              <div className="flex items-center justify-between text-primary font-bold">
+                <span className="flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">record_voice_over</span>
+                  Guión y Transcripción del Audio
+                </span>
+                <span className="text-[10px] text-on-surface-variant font-normal">
+                  {lesson.audioDuration}
+                </span>
+              </div>
+              <p className="text-[11px] text-on-surface-variant leading-relaxed italic bg-surface-container-low/50 p-2.5 rounded-lg border border-surface-container">
+                &ldquo;{lesson.audioTranscript || `Hola, bienvenido a la cápsula de ${lesson.category} en KipuFin. Hoy aprenderás: ${lesson.title}. ${lesson.desc}`}&rdquo;
+              </p>
+              <div className="text-[11px] space-y-1.5 pt-1 border-t border-surface-container">
+                <p className="font-bold text-on-surface text-[10px] uppercase tracking-wider text-primary">
+                  Puntos Clave del Audio:
+                </p>
+                {lesson.explanationList.map((item, idx) => (
+                  <div key={idx} className="flex items-start gap-1.5 text-[11px]">
+                    <span className="text-secondary font-bold text-xs leading-none">•</span>
+                    <span>
+                      <strong>{item.title}:</strong> {item.desc}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 1. Explicación Didáctica Completa */}
