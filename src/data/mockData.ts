@@ -18,7 +18,6 @@ export const ALL_TOPIC_LESSONS: TopicLesson[] = [
     conceptTitle: 'Término sin rollos: "Fondo de Liquidez"',
     conceptDesc: "No es plata congelada; es tu colchón de emergencia accesible al instante por Yape o transferencia si se rompe la tubería o surge una urgencia médica.",
     audioDuration: "00:57 min",
-    audioUrl: "/audio/regla-50-30-20.mp3",
     audioTranscript: "Hola, bienvenido a la cápsula 1 de KipuFin: La regla 50/30/20. Organizar tu dinero no significa dejar de disfrutar. La clave está en dividir tus ingresos en tres partes: Primero, el 50% va destinado a tus necesidades básicas, como alquiler, comida del mercado, recibos de luz, agua y tus pasajes diarios. Segundo, el 30% es para tus gustos y calidad de vida: disfruta de una salidita el fin de semana, un pollito a la brasa o tus suscripciones sin culpa alguna. Y tercero, el 20% es para tu yo del futuro: separa este porcentaje inmediatamente para tu fondo de emergencia en una cuenta de alto rendimiento. Recuerda la regla de oro KipuFin: no se trata de vivir ajustado, sino de gastar tu 30% con total paz mental porque tus gastos fijos y tu ahorro ya están cubiertos. Aplica esta regla hoy mismo en nuestro calculador.",
     explanationList: [
       {

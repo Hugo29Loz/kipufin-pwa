@@ -355,10 +355,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <span className="text-[10px] bg-primary-fixed text-on-primary-fixed px-1.5 py-0.2 rounded font-bold">
                     {currentLesson.durationMin} min
                   </span>
-                  {currentLesson.audioUrl && (
+                  {(currentLesson.audioUrl || currentLesson.id === 'les-ahorro-1' || currentLesson.audioTranscript) && (
                     <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow-xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
-                      Audio Oficial 🎙️
+                      Audio Guiado 🎙️
                     </span>
                   )}
                 </div>
@@ -489,7 +489,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 play_circle
               </span>
               <span>
-                {currentLesson.audioUrl ? 'Reproducir audio oficial 🎧' : `Escuchar audio (${currentLesson.durationMin} min)`}
+                {currentLesson.audioUrl || currentLesson.id === 'les-ahorro-1' ? 'Escuchar audio de la cápsula 🎧' : `Escuchar audio (${currentLesson.durationMin} min)`}
               </span>
             </button>
             <button

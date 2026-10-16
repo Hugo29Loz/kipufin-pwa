@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TopicLesson, UserState } from '../types';
 import { Rule503020Calculator } from './Rule503020Calculator';
+import { getLessonAudio, saveLessonAudio, deleteLessonAudio } from '../utils/audioStorage';
 
 interface CapsuleDrawerProps {
   lesson: TopicLesson | null;
@@ -31,12 +32,13 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
 }) => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [progressSec, setProgressSec] = useState<number>(0);
-  const [totalSec, setTotalSec] = useState<number>(230); // ~3:50 default
+  const [totalSec, setTotalSec] = useState<number>(57); // default 57s for Ahorro
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [uploadedAudioUrl, setUploadedAudioUrl] = useState<string | null>(null);
   const [audioFileName, setAudioFileName] = useState<string | null>(null);
   const [showTranscript, setShowTranscript] = useState<boolean>(false);
   const [useSpeechFallback, setUseSpeechFallback] = useState<boolean>(false);
+  const [isPersisted, setIsPersisted] = useState<boolean>(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -49,7 +51,7 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
 
   const activeAudioUrl = uploadedAudioUrl || lesson?.audioUrl || null;
 
-  // Reset state when lesson changes
+  // Reset state and load stored audio when lesson changes
   useEffect(() => {
     setSelectedQuizOption(null);
     setHasAnsweredQuiz(false);
@@ -57,12 +59,25 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
     setIsPlaying(false);
     setUploadedAudioUrl(null);
     setAudioFileName(null);
+    setIsPersisted(false);
+
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+    }
+
+    if (lesson?.id) {
+      // Load saved audio from IndexedDB if the user previously attached it
+      getLessonAudio(lesson.id).then((saved) => {
+        if (saved) {
+          setUploadedAudioUrl(saved.objectUrl);
+          setAudioFileName(saved.fileName);
+          setIsPersisted(true);
+        }
+      });
     }
   }, [lesson?.id]);
 
@@ -123,22 +138,47 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (file && lesson) {
       if (uploadedAudioUrl) {
         URL.revokeObjectURL(uploadedAudioUrl);
       }
       const url = URL.createObjectURL(file);
       setUploadedAudioUrl(url);
       setAudioFileName(file.name);
+      setIsPersisted(true);
       setIsPlaying(false);
       setProgressSec(0);
       setUseSpeechFallback(false);
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
+
+      // Persist in IndexedDB so the original voice is preserved permanently
+      try {
+        await saveLessonAudio(lesson.id, file);
+      } catch (err) {
+        console.warn('Error saving audio to IndexedDB:', err);
+      }
     }
+  };
+
+  const handleRemoveAudio = async () => {
+    if (!lesson) return;
+    if (uploadedAudioUrl) {
+      URL.revokeObjectURL(uploadedAudioUrl);
+    }
+    setUploadedAudioUrl(null);
+    setAudioFileName(null);
+    setIsPersisted(false);
+    setIsPlaying(false);
+    setProgressSec(0);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    await deleteLessonAudio(lesson.id);
   };
 
   const togglePlay = () => {
@@ -196,7 +236,7 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
     const ratio = Math.max(0, Math.min(1, clickX / rect.width));
     const targetSec = Math.round(ratio * totalSec);
     setProgressSec(targetSec);
-    if (uploadedAudioUrl && audioRef.current) {
+    if (activeAudioUrl && audioRef.current) {
       audioRef.current.currentTime = targetSec;
     }
   };
@@ -293,7 +333,7 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
                 {activeAudioUrl && (
                   <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-1 border border-emerald-300">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
-                    {uploadedAudioUrl ? 'Audio Personalizado' : 'Audio Oficial KipuFin'}
+                    {uploadedAudioUrl ? 'Voz Original Vinculada' : 'Audio Oficial KipuFin'}
                   </span>
                 )}
               </div>
@@ -311,8 +351,66 @@ export const CapsuleDrawer: React.FC<CapsuleDrawerProps> = ({
           </button>
         </div>
 
-        {/* Interactive Audio Player with Real Audio & File Test */}
-        <div className="mt-3.5 p-3.5 bg-surface-container-low rounded-2xl border border-surface-container flex flex-col gap-2.5 shadow-xs">
+        {/* Dedicated Audio Banner for Original Voice */}
+        {!activeAudioUrl ? (
+          <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-amber-950 dark:text-amber-200">
+                <span className="material-symbols-outlined text-amber-600 text-base">mic</span>
+                <span className="text-xs font-bold">Audio Oficial: "Ahorro 1.mp3"</span>
+              </div>
+              <span className="text-[9px] bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-100 font-bold px-2 py-0.5 rounded-full">
+                Voz Original
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-900/90 dark:text-amber-300/90 leading-snug">
+              Para escuchar esta cápsula con tu <strong>voz humana original</strong> (sin voces artificiales ni sintetizadores), adjunta tu archivo <strong>Ahorro 1.mp3</strong>. Se guardará de forma permanente en tu dispositivo.
+            </p>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="py-2 px-3 bg-primary text-on-primary rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs active:scale-98 transition-all cursor-pointer hover:bg-primary/90"
+            >
+              <span className="material-symbols-outlined text-base">attach_file</span>
+              <span>Adjuntar "Ahorro 1.mp3" (Conservar voz original)</span>
+            </button>
+          </div>
+        ) : (
+          <div className="mt-3 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-300/80 dark:border-emerald-700/50 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="material-symbols-outlined text-emerald-600 text-lg shrink-0">record_voice_over</span>
+              <div className="truncate">
+                <p className="text-xs font-bold text-emerald-950 dark:text-emerald-100 truncate flex items-center gap-1.5">
+                  <span className="truncate">{audioFileName || 'Audio Oficial'}</span>
+                  <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wide shrink-0">
+                    Voz Original
+                  </span>
+                </p>
+                <p className="text-[10px] text-emerald-700 dark:text-emerald-400">
+                  {isPersisted ? 'Guardado permanentemente en KipuFin' : 'Audio activo'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="text-[11px] text-emerald-800 dark:text-emerald-300 hover:underline font-semibold cursor-pointer"
+                title="Cambiar archivo de audio"
+              >
+                Cambiar
+              </button>
+              <button
+                onClick={handleRemoveAudio}
+                className="text-[11px] text-red-600 hover:text-red-700 hover:underline font-semibold cursor-pointer"
+                title="Quitar audio"
+              >
+                Quitar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Interactive Audio Player with Real Audio & Controls */}
+        <div className="mt-2.5 p-3.5 bg-surface-container-low rounded-2xl border border-surface-container flex flex-col gap-2.5 shadow-xs">
           <div className="flex items-center justify-between text-xs font-bold text-on-surface">
             <div className="flex items-center gap-1.5">
               <span
